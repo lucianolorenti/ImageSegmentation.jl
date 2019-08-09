@@ -26,6 +26,7 @@ include("watershed.jl")
 include("region_merging.jl")
 include("meanshift.jl")
 include("clustering.jl")
+include("linear_spectral_clustering.jl")
 
 export
     #accessor methods

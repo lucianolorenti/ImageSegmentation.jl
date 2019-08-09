@@ -7,4 +7,5 @@ include("fast_scanning.jl")
 include("watershed.jl")
 include("region_merging.jl")
 include("meanshift.jl")
+include("linear_spectral_clustering.jl")
 
