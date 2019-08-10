@@ -1,18 +1,25 @@
 using Statistics
-function compute_seeds(mapped_features::Array{Float64, 3}, number_of_seeds::Integer, stepx::Integer, stepy::Integer) where T
+function compute_seeds(mapped_features::Array{Float64, 3}, number_of_seeds::Integer) where T
     rows, cols, mapped_dimension = size(mapped_features)
     N = rows * cols
-    seeds_indices = collect(range(1, N, step=Integer(round(N/number_of_seeds))))
+    stepx = round(Integer, cols/sqrt(number_of_seeds))
+    stepy = round(Integer, rows/sqrt(number_of_seeds))
+    seeds_location = map(
+        CartesianIndex,
+        collect(
+            Iterators.product(
+                1:stepy:rows,
+                1:stepx:cols)))
+    number_of_seeds = length(seeds_location)
     R = CartesianIndices((rows, cols))
     Ifirst, Ilast = first(R), last(R)
-    I1 = CartesianIndex(stepx, stepy)
-    seeds = zeros(mapped_dimension, length(seeds_indices))
-    seeds_location = CartesianIndices((rows, cols))[seeds_indices]
+    I1 = CartesianIndex(stepy, stepx)
+    seeds = zeros(mapped_dimension, number_of_seeds) 
     for (i, I) in enumerate(seeds_location)
         range = max(Ifirst, I-I1):min(Ilast, I+I1)
         seeds[:, i] = mean(mapped_features[range, :], dims=[1, 2])
     end
-    return seeds, seeds_location
+    return seeds, seeds_location, stepy, stepx
 end
 
 function map_features(img::Array{Lab{T},2}, Cc::Float64, Cs::Float64) where T
@@ -37,7 +44,7 @@ end
 ```
 ```
 """
-function LSC(img::Array{CT,2}, nseeds::Integer;  color_importance=0.7, space_importance=0.5, iter::Int = 50) where CT
+function LSC(img::Array{CT,2}, nseeds::Integer;  color_importance=0.7, space_importance=0.5, maxit::Int = 50) where CT
     img = convert.(Lab, img)
     rows, cols = size(img)
     mapped_features = map_features(img, color_importance, space_importance)    
@@ -47,19 +54,16 @@ function LSC(img::Array{CT,2}, nseeds::Integer;  color_importance=0.7, space_imp
         W[I] = mapped_features[I, :]' * sigma
         mapped_features[I, :] ./= W[I]
     end
-    ColNum=sqrt(float(nseeds*rows/cols));
-	RowNum=nseeds/ColNum;
-	StepX=ceil(Integer, rows/RowNum) 
-    StepY=ceil(Integer, cols/ColNum) 
-    seeds, seeds_location = compute_seeds(mapped_features, nseeds, StepX, StepY)
+    seeds, seeds_location, stepy, stepx = compute_seeds(mapped_features, nseeds)
     L = zeros(Integer, size(img))  
+    nseeds = length(seeds_location)
     clusterSize = zeros(nseeds)
     WSum = zeros(nseeds)
     R = CartesianIndices(img)
     Ifirst, Ilast = first(R), last(R)
-    I1 = CartesianIndex(StepX, StepY)
+    I1 = CartesianIndex(stepy, stepx)
     D =  ones(size(img))
-    for it = 1:iter
+    for it = 1:maxit
         @info "Iteration $it"
         fill!(D, Inf)
         for (i, seed) in enumerate(seeds_location)
