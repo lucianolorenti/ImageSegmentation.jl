@@ -16,5 +16,5 @@
 
     using ImageSegmentation, Images, Test, TestImages
     img = testimage("mandrill")
-    ImageSegmentation.LSC(img, 50, 2)
+    segments = ImageSegmentation.LSC(img, 50)
 end
